@@ -2,6 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "nodemon ./index.js"
   },
@@ -17,8 +18,9 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "openai": "^5.10.2",
-    "pdf-parse": "^1.1.1"
+    "openai": "^5.11.0",
+    "pdf-parse": "^1.1.1",
+    "pinecone-client": "^2.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
