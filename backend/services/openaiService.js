@@ -6,33 +6,36 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function embedChunks(chunks) {
-  const embeddings = [];
-
-  for (const chunk of chunks) {
-    const res = await openai.embeddings.create({
-      input: chunk,
-      model: 'text-embedding-3-small',
-    });
-    embeddings.push(res.data[0].embedding);
+export async function getEmbedding(text) {
+  // text can be string or array of strings; here assuming string
+  const response = await openai.embeddings.create({
+    input: text,
+    model: 'text-embedding-3-small', // matches your Pinecone index dimension 512
+  });
+  // response.data can be an array, so handle array or single string
+  if (Array.isArray(response.data)) {
+    return response.data[0].embedding;
   }
-
-  return embeddings;
+  return response.data.embedding;
 }
 
 export async function askOpenAI(question, contextChunks) {
-  const context = contextChunks.join('\n\n');
+  const context = contextChunks.map(chunk => chunk.metadata?.text || '').join('\n\n');
+
+  console.log('Context sent to OpenAI:', context);
 
   const res = await openai.chat.completions.create({
     model: 'gpt-4',
     messages: [
       {
         role: 'system',
-        content: 'You are a helpful assistant for answering questions about a PDF document.',
+        content: `You are a helpful assistant. Use the following context extracted from a PDF document to answer the user's question. 
+                  If the context does not contain the answer, say so politely. 
+                  Provide a concise, informative answer based only on the context.`,
       },
       {
         role: 'user',
-        content: `Context: ${context}\n\nQuestion: ${question}`,
+        content: `Context:\n${context}\n\nQuestion: ${question}`,
       },
     ],
   });
