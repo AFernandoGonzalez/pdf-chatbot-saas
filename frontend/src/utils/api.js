@@ -1,4 +1,3 @@
-// src/utils/api.js
 
 export async function uploadPDF(file) {
   const formData = new FormData();
@@ -19,4 +18,10 @@ export async function uploadPDF(file) {
     fileId: data.fileId,
     fileUrl: data.fileUrl,
   };
+}
+
+export async function fetchUploadedFiles() {
+  const res = await fetch('http://localhost:8000/api/files');
+  if (!res.ok) throw new Error('Failed to fetch files');
+  return res.json();
 }

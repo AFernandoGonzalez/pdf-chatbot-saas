@@ -1,8 +1,12 @@
 import express from 'express';
-import { handleChat } from '../controllers/chatController.js';
+import { handleChat, handleFileSummaryAndQuestions } from '../controllers/chatController.js';
 
 const router = express.Router();
 
 router.post('/', handleChat);
+// router.get('/summary/:fileId', handleSummary);
+router.get('/file-info/:fileId', handleFileSummaryAndQuestions); // <- 🆕
+
+
 
 export default router;
