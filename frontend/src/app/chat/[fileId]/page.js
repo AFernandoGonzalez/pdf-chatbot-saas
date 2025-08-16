@@ -3,11 +3,16 @@
 import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useAuth } from '../../../providers/AuthProvider';
 import ChatBox from '@/components/ChatBox';
 import PDFViewer from '@/components/PDFViewer';
 
-async function fetchFile(fileId) {
+async function fetchFile(fileId, firebaseUser) {
+  if (!firebaseUser) throw new Error('Not logged in');
+  const token = await firebaseUser.getIdToken();
+
   const res = await fetch(`http://localhost:8000/api/files/${fileId}`, {
+    headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
   });
 
@@ -18,12 +23,13 @@ async function fetchFile(fileId) {
 export default function PDFChatPage({ params }) {
   const { fileId } = use(params);
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     const loadFile = async () => {
       try {
-        const fileData = await fetchFile(fileId);
+        const fileData = await fetchFile(fileId, user);
         setSelectedFile(fileData);
       } catch (err) {
         console.error('Error fetching file:', err);
@@ -31,9 +37,10 @@ export default function PDFChatPage({ params }) {
       }
     };
 
-    loadFile();
-  }, [fileId, router]);
+    if (user) loadFile();
+  }, [fileId, user, router]);
 
+  if (loading || !user) return <div>Loading...</div>;
   if (!selectedFile) return <div>Loading file...</div>;
 
   const fileUrl = selectedFile.fileUrl.toLowerCase();

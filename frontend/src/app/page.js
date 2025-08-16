@@ -1,7 +1,7 @@
 'use client';
 
 import { useAtom } from 'jotai';
-import {  useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { fetchUploadedFiles } from '../utils/api';
@@ -46,7 +46,7 @@ export default function HomePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Upload failed');
 
-      const allFiles = await fetchUploadedFiles(idToken);
+      const allFiles = await fetchUploadedFiles(user);
       setFiles(allFiles);
 
       router.push(`/chat/${data.fileId}`);
@@ -88,7 +88,9 @@ export default function HomePage() {
       <main className="flex-1 p-12">
         <header className="mb-8">
           <h1 className="text-3xl font-bold">Chat with any PDF</h1>
-          <p className="text-gray-600 mt-2">Upload a PDF and start asking questions immediately.</p>
+          <p className="text-gray-600 mt-2">
+            Upload a PDF and start asking questions immediately.
+          </p>
         </header>
 
         <section
@@ -98,8 +100,12 @@ export default function HomePage() {
             p-12 flex flex-col items-center justify-center bg-white`}
         >
           <div className="text-center">
-            <p className="text-xl font-medium">Click to upload, or drag & drop your PDF here</p>
-            <p className="text-sm text-gray-500 mt-2">Supports PDF. Upload and open chat instantly.</p>
+            <p className="text-xl font-medium">
+              Click to upload, or drag & drop your PDF here
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Supports PDF. Upload and open chat instantly.
+            </p>
 
             <input
               ref={inputRef}

@@ -1,16 +1,22 @@
 import { getRelevantChunks } from '../services/pineconeService.js';
-import { askOpenAIStream } from '../services/openaiService.js';
+import { askOpenAIStream, askOpenAI } from '../services/openaiService.js';
 import PDFFile from '../models/PDFFile.js';
 import ChatMessage from '../models/ChatMessage.js';
-import { askOpenAI } from '../services/openaiService.js';
 
+/**
+ * Handle streaming chat responses from OpenAI and saving messages
+ */
 export const handleChat = async (req, res) => {
   const { fileId, question } = req.body;
-  const userId = req.body.userId;
+  const uid = req.user?.uid;
 
+  if (!uid) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
-    const relevantChunks = await getRelevantChunks(fileId, question);
+    const relevantChunks = await getRelevantChunks(fileId, question, uid);
+
 
     if (!relevantChunks.length) {
       return res.status(404).json({ error: 'No relevant chunks found.' });
@@ -33,12 +39,10 @@ export const handleChat = async (req, res) => {
       fullAnswer += content;
     }
 
-
     await ChatMessage.create([
-      { fileId, userId, sender: 'user', text: question },
-      { fileId, userId, sender: 'bot', text: fullAnswer }
+      { fileId, uid, sender: 'user', text: question },
+      { fileId, uid, sender: 'bot', text: fullAnswer }
     ]);
-
 
     res.end();
   } catch (err) {
@@ -49,28 +53,40 @@ export const handleChat = async (req, res) => {
   }
 };
 
-
+/**
+ * Handle generating or retrieving file summary and suggested questions
+ */
 export const handleFileSummaryAndQuestions = async (req, res) => {
   const { fileId } = req.params;
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
-    const existing = await PDFFile.findOne({ fileId });
+    const existing = await PDFFile.findOne({ fileId, uid });
     if (!existing) {
-      return res.status(404).json({ error: "File not found" });
+      return res.status(404).json({ error: 'File not found' });
     }
 
     if (existing.summary && existing.questions?.length > 0) {
       return res.json({
         summary: existing.summary,
         questions: existing.questions,
-        docType: existing.docType || "Unknown",
+        docType: existing.docType || 'Unknown',
       });
     }
 
-    const relevantChunks = await getRelevantChunks(fileId, 'Summarize the content and identify the document type.');
+    const relevantChunks = await getRelevantChunks(
+      fileId,
+      'Summarize the content and identify the document type.',
+      uid
+    );
+
     const context = relevantChunks.map(c => c.metadata?.text || '').filter(Boolean);
 
-    if (context.length === 0) {
+    if (!context.length) {
       return res.status(202).json({ status: 'processing' });
     }
 
@@ -86,16 +102,11 @@ export const handleFileSummaryAndQuestions = async (req, res) => {
 
     const docType = await askOpenAI('docType', context);
 
-    const updated = await PDFFile.findOneAndUpdate(
-      { fileId },
-      { summary, questions, docType, status: "ready" },
+    await PDFFile.findOneAndUpdate(
+      { fileId, uid },
+      { summary, questions, docType, status: 'ready' },
       { new: true }
     );
-
-    if (!updated) {
-      console.error("No existing document found for fileId:", fileId);
-      return res.status(404).json({ error: "File not found for updating summary" });
-    }
 
     res.json({ summary, questions, docType });
   } catch (err) {
@@ -104,11 +115,19 @@ export const handleFileSummaryAndQuestions = async (req, res) => {
   }
 };
 
+/**
+ * Get all chat messages for a file
+ */
 export const getChatMessages = async (req, res) => {
   const { fileId } = req.params;
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
-    const messages = await ChatMessage.find({ fileId }).sort({ createdAt: 1 });
+    const messages = await ChatMessage.find({ fileId, uid }).sort({ createdAt: 1 });
     res.json(messages);
   } catch (error) {
     console.error('Error fetching chat messages:', error);

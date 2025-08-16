@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { uploadPDF } from '../utils/api';
+import { useAuth } from '../providers/AuthProvider';
 
 export default function PDFUpload({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -15,7 +17,7 @@ export default function PDFUpload({ onUploadSuccess }) {
     if (file) {
       try {
         setLoading(true);
-        const { fileId, fileUrl } = await uploadPDF(file);
+        const { fileId, fileUrl } = await uploadPDF(file, user);
         onUploadSuccess({
           fileId,
           fileUrl,

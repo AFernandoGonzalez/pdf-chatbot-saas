@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../providers/AuthProvider';
 
 export default function ChatBox({ pdfId }) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [summary, setSummary] = useState(null);
@@ -11,11 +13,7 @@ export default function ChatBox({ pdfId }) {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  useEffect(() => {
-    if (!pdfId) {
+    if (!pdfId || !user) {
       setSummary('No file selected.');
       setQuestions([]);
       setLoadingSummary(false);
@@ -30,11 +28,13 @@ export default function ChatBox({ pdfId }) {
 
     async function pollSummary() {
       try {
-        const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`);
+        const token = await user.getIdToken();
+        const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         if (res.status === 202) {
-          if (polling) {
-            setTimeout(pollSummary, 3000);
-          }
+          if (polling) setTimeout(pollSummary, 3000);
         } else if (res.ok) {
           const data = await res.json();
           setSummary(data.summary || 'No summary available.');
@@ -58,17 +58,21 @@ export default function ChatBox({ pdfId }) {
     return () => {
       polling = false;
     };
-  }, [pdfId]);
+  }, [pdfId, user]);
 
   useEffect(() => {
-    if (!pdfId) {
+    if (!pdfId || !user) {
       setMessages([]);
       return;
     }
 
     async function fetchMessages() {
       try {
-        const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`);
+        const token = await user.getIdToken();
+        const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         if (res.ok) {
           const data = await res.json();
           setMessages(data.map((msg) => ({ sender: msg.sender, text: msg.text })));
@@ -82,21 +86,24 @@ export default function ChatBox({ pdfId }) {
     }
 
     fetchMessages();
-  }, [pdfId]);
+  }, [pdfId, user]);
 
   async function sendQuestion(question) {
-    if (!question.trim()) return;
+    if (!question.trim() || !user) return;
 
     setMessages((prev) => [...prev, { sender: 'user', text: question }]);
     setInput('');
-
     setMessages((prev) => [...prev, { sender: 'bot', text: '' }]);
 
     try {
+      const token = await user.getIdToken();
       const res = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId: pdfId, question }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileId: pdfId, question, userId: user.uid }),
       });
 
       if (!res.body) throw new Error('No response body from server');
@@ -141,26 +148,20 @@ export default function ChatBox({ pdfId }) {
         if (list.length) {
           out.push(
             <ul key={`ul-${i}`} className="list-disc list-inside mb-2 text-sm text-gray-700 ml-4">
-              {list.map((li, idx) => (
-                <li key={idx}>{li}</li>
-              ))}
+              {list.map((li, idx) => <li key={idx}>{li}</li>)}
             </ul>,
           );
           list = [];
         }
         out.push(
-          <p key={`p-${i}`} className="text-sm text-gray-800 mb-2">
-            {line}
-          </p>,
+          <div key={`p-${i}`} className="text-sm text-gray-800 mb-2">{line}</div>,
         );
       }
     });
     if (list.length) {
       out.push(
         <ul key="ul-last" className="list-disc list-inside mb-2 text-sm text-gray-700 ml-4">
-          {list.map((li, idx) => (
-            <li key={idx}>{li}</li>
-          ))}
+          {list.map((li, idx) => <li key={idx}>{li}</li>)}
         </ul>,
       );
     }
@@ -179,7 +180,7 @@ export default function ChatBox({ pdfId }) {
         {summary && (
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             <strong className="block mb-2 text-gray-800">Summary:</strong>
-            <p className="text-gray-700 whitespace-pre-wrap">{formatSummary(summary)}</p>
+            <div className="text-gray-700 whitespace-pre-wrap">{formatSummary(summary)}</div>
           </div>
         )}
 
@@ -191,8 +192,7 @@ export default function ChatBox({ pdfId }) {
                 <button
                   key={idx}
                   onClick={() => sendQuestion(q)}
-                  className={`bg-blue-100 hover:bg-blue-200 text-blue-800 
-                    rounded-md px-4 py-2 text-sm font-medium transition`}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md px-4 py-2 text-sm font-medium transition"
                 >
                   {q}
                 </button>
@@ -227,9 +227,7 @@ export default function ChatBox({ pdfId }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something about this PDF..."
           disabled={loadingSummary}
-          className={`flex-1 border border-gray-300 rounded-md px-4 py-2 
-            text-gray-900 placeholder-gray-400 focus:outline-none 
-            focus:ring-2 focus:ring-blue-500`}
+          className="flex-1 border border-gray-300 rounded-md px-4 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"

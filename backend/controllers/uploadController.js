@@ -40,11 +40,9 @@ export const handleUpload = async (req, res) => {
 
     await PDFFile.findOneAndUpdate(
       { fileId },
-      { fileId, fileName, originalName: originalname, fileUrl: publicUrl, status: "processing", userId },
+      { fileId, fileName, originalName: originalname, fileUrl: publicUrl, status: "processing", uid: userId },
       { upsert: true, new: true }
     );
-
-
 
     res.json({ fileId, fileUrl: publicUrl });
   } catch (err) {
@@ -77,7 +75,7 @@ export const handleImageUpload = async (req, res) => {
         fileUrl: publicUrl,
         status: "uploaded",
         type: mimetype,
-        userId,
+        uid: userId,
       },
       { upsert: true, new: true }
     );

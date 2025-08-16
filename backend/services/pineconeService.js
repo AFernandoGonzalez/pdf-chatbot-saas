@@ -58,7 +58,7 @@ export async function saveToPinecone(fileId, chunks, filename, userId) {
   return embeddings.length;
 }
 
-export async function getRelevantChunks(fileId, query, topK = 8, minScore = 0.15) {
+export async function getRelevantChunks(fileId, query, userId, topK = 8, minScore = 0.15) {
   const queryEmbedding = await getEmbedding(query);
 
   const result = await index.namespace(userId).query({
@@ -79,4 +79,5 @@ export async function getRelevantChunks(fileId, query, topK = 8, minScore = 0.15
 
   return filtered;
 }
+
 
