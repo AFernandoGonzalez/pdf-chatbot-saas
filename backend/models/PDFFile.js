@@ -1,25 +1,18 @@
-// models/PDFFile.js
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const pdfFileSchema = new mongoose.Schema({
-  fileId: String,                     // unique ID used in Pinecone
-  fileName: String,                  // full name: 1754353318733-jdsports_store_return_label.pdf
-  originalName: String,              // original uploaded filename
-  fileUrl: String,                   // public R2 URL
-  uploadedAt: {
-    type: Date,
-    default: Date.now,
-  },
-  userId: String,                    // if using auth
-  // ✅ New fields for summary and questions
-  summary: {
-    type: String,
-    default: '',
-  },
-  questions: {
-    type: [String],
-    default: [],
-  },
-});
+  fileId: { type: String, required: true, unique: true },
+  uid: { type: String, required: true, index: true },
+  fileName: { type: String, default: "" },
+  originalName: { type: String, default: "" },
+  fileUrl: { type: String, default: "" },
+  status: { type: String, enum: ["processing", "ready", "failed"], default: "processing" },
+  summary: { type: String, default: "" },
+  questions: { type: [String], default: [] },
+  docType: { type: String, default: "" },
+  totalPages: { type: Number, default: 0 },
+  storageSizeMB: { type: Number, default: 0 },
+  uploadedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
 
-export default mongoose.models.PDFFile || mongoose.model('PDFFile', pdfFileSchema);
+export default mongoose.models.PDFFile || mongoose.model("PDFFile", pdfFileSchema);

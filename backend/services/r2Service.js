@@ -1,4 +1,3 @@
-// backend/services/r2Service.js
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -22,6 +21,5 @@ export const uploadFileToR2 = async (fileBuffer, fileName, mimeType) => {
 
   await r2.send(command);
 
-  // Optionally return the file URL if needed
   return `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
 };

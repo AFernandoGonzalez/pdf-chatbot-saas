@@ -1,96 +1,125 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useAtom } from 'jotai';
+import {  useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function Home() {
-  // const [files, setFiles] = useState([])
-  // const [selectedFile, setSelectedFile] = useState(null)
-  const [uploading, setUploading] = useState(false)
-  const [fileInput, setFileInput] = useState(null)
+import { fetchUploadedFiles } from '../utils/api';
+import { filesAtom } from '../store/atoms';
+import { useAuth } from '../providers/AuthProvider';
+import AuthModal from '../components/AuthModal';
 
-  const router = useRouter()
+export default function HomePage() {
+  const router = useRouter();
+  const inputRef = useRef();
+  const [, setFiles] = useAtom(filesAtom);
+  const { user, loading } = useAuth();
+  const [, setShowModal] = useState(false);
 
-  // Fetch uploaded files from backend
-  // useEffect(() => {
-  //   const fetchFiles = async () => {
-  //     try {
-  //       const res = await fetch('http://localhost:8000/api/files')
-  //       const data = await res.json()
-  //       console.log('Fetched files:', data);
-        
-  //       setFiles(data)
-  //     } catch (err) {
-  //       console.error('Failed to load files:', err)
-  //     }
-  //   }
+  if (loading) return null;
+  if (!user) return <AuthModal onClose={() => setShowModal(false)} />;
 
-  //   fetchFiles()
-  // }, [])
+  async function uploadAndNavigate(file) {
+    const fd = new FormData();
+    fd.append('file', file);
 
-  // Handle PDF file upload
-  const handleUpload = async () => {
-    if (!fileInput) return
-    const formData = new FormData()
-    formData.append('file', fileInput)
+    const endpoint =
+      file.type === 'application/pdf'
+        ? '/api/upload/upload-pdf'
+        : file.type.startsWith('image/')
+          ? '/api/upload/upload-img'
+          : null;
 
-    setUploading(true)
+    if (!endpoint) return alert('Unsupported file type.');
+
     try {
-      const res = await fetch('http://localhost:8000/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
+      const idToken = await user.getIdToken();
 
-      setFiles((prev) => [...prev, data]) // update UI
-      setSelectedFile(data) // set selected to new one
-      router.push(`/c/${data.fileId}`) // navigate to chat
+      const res = await fetch(`http://localhost:8000${endpoint}`, {
+        method: 'POST',
+        body: fd,
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Upload failed');
+
+      const allFiles = await fetchUploadedFiles(idToken);
+      setFiles(allFiles);
+
+      router.push(`/chat/${data.fileId}`);
     } catch (err) {
-      console.error('Upload failed:', err)
-    } finally {
-      setUploading(false)
+      console.error('Upload error', err);
+      alert('Upload failed — check console.');
+    }
+  }
+
+  function onFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (
+      file.type === 'application/pdf' ||
+      file.type === 'image/jpeg' ||
+      file.type === 'image/png'
+    ) {
+      uploadAndNavigate(file);
+    } else {
+      alert('Please select a PDF or a JPEG/PNG image.');
+    }
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+      uploadAndNavigate(file);
+    } else {
+      alert('Please drop a PDF or image file.');
     }
   }
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      {/* <aside className="w-64 bg-gray-100 border-r p-4 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">Your PDFs</h2>
-        <ul className="space-y-2">
-          {files.map((file) => (
-            <li
-              key={file.fileId}
-              onClick={() => router.push(`/chat/${file.fileId}`)}
-              className={`cursor-pointer p-2 rounded hover:bg-gray-200 text-black ${
-                selectedFile?.fileId === file.fileId ? 'bg-blue-100 font-semibold' : ''
-              }`}
-            >
-              {file.originalName}
-            </li>
-          ))}
-        </ul>
+    <div className="min-h-screen bg-gray-50 flex">
+      <main className="flex-1 p-12">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold">Chat with any PDF</h1>
+          <p className="text-gray-600 mt-2">Upload a PDF and start asking questions immediately.</p>
+        </header>
 
-      </aside> */}
-
-      {/* Main Upload Section */}
-      <main className="flex-1 p-8">
-        <h1 className="text-2xl font-bold mb-4">Upload a PDF</h1>
-
-        <input
-          type="file"
-          accept="application"
-          onChange={(e) => setFileInput(e.target.files?.[0] || null)}
-          className="mb-4"
-        />
-        <button
-          onClick={handleUpload}
-          disabled={!fileInput || uploading}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        <section
+          onDrop={onDrop}
+          onDragOver={(e) => e.preventDefault()}
+          className={`border-2 border-dashed border-gray-300 rounded-lg 
+            p-12 flex flex-col items-center justify-center bg-white`}
         >
-          {uploading ? 'Uploading...' : 'Upload PDF'}
-        </button>
+          <div className="text-center">
+            <p className="text-xl font-medium">Click to upload, or drag & drop your PDF here</p>
+            <p className="text-sm text-gray-500 mt-2">Supports PDF. Upload and open chat instantly.</p>
+
+            <input
+              ref={inputRef}
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              onChange={onFileChange}
+              className="hidden"
+            />
+
+            <div className="mt-6">
+              <button
+                onClick={() => inputRef.current?.click()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md"
+              >
+                Choose PDF
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
-  )
+  );
 }

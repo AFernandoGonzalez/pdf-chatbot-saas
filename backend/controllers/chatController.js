@@ -1,10 +1,13 @@
 import { getRelevantChunks } from '../services/pineconeService.js';
 import { askOpenAIStream } from '../services/openaiService.js';
-import PDFFile from '../models/PDFFile.js'; // ✅ <-- THIS LINE
+import PDFFile from '../models/PDFFile.js';
+import ChatMessage from '../models/ChatMessage.js';
 import { askOpenAI } from '../services/openaiService.js';
 
 export const handleChat = async (req, res) => {
   const { fileId, question } = req.body;
+  const userId = req.body.userId;
+
 
   try {
     const relevantChunks = await getRelevantChunks(fileId, question);
@@ -13,10 +16,7 @@ export const handleChat = async (req, res) => {
       return res.status(404).json({ error: 'No relevant chunks found.' });
     }
 
-    const context = relevantChunks.map((m) => m.metadata?.text || '').filter(Boolean);
-
-    // OpenAI streaming response (ReadableStream)
-    const stream = await askOpenAIStream(question, context);
+    const context = relevantChunks.map(m => m.metadata?.text || '').filter(Boolean);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -24,61 +24,78 @@ export const handleChat = async (req, res) => {
       Connection: 'keep-alive',
     });
 
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
+    let fullAnswer = '';
+    const stream = await askOpenAIStream(question, context);
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(decoder.decode(value));
+    for await (const part of stream) {
+      const content = part.choices?.[0]?.delta?.content || '';
+      res.write(content);
+      fullAnswer += content;
     }
+
+
+    await ChatMessage.create([
+      { fileId, userId, sender: 'user', text: question },
+      { fileId, userId, sender: 'bot', text: fullAnswer }
+    ]);
+
+
     res.end();
   } catch (err) {
     console.error('Chat failed:', err);
-    res.status(500).json({ error: 'Chat failed' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Chat failed' });
+    }
   }
 };
+
 
 export const handleFileSummaryAndQuestions = async (req, res) => {
   const { fileId } = req.params;
 
   try {
     const existing = await PDFFile.findOne({ fileId });
+    if (!existing) {
+      return res.status(404).json({ error: "File not found" });
+    }
 
-    if (existing?.summary && existing?.questions?.length > 0 && existing?.docType) {
+    if (existing.summary && existing.questions?.length > 0) {
       return res.json({
         summary: existing.summary,
         questions: existing.questions,
-        docType: existing.docType,
+        docType: existing.docType || "Unknown",
       });
     }
 
     const relevantChunks = await getRelevantChunks(fileId, 'Summarize the content and identify the document type.');
     const context = relevantChunks.map(c => c.metadata?.text || '').filter(Boolean);
 
+    if (context.length === 0) {
+      return res.status(202).json({ status: 'processing' });
+    }
+
     const summary = await askOpenAI('summary', context);
 
     const rawQuestions = await askOpenAI('questions', context);
-    // const questions = rawQuestions
-    //   .split('\n')
-    //   .map(q => q.replace(/^\d+\.\s*/, '').trim())
-    //   .filter(Boolean)
-    //   .slice(0, 3);
     const questions = rawQuestions
       .split('\n')
       .map(q => q.replace(/^\d+\.?\s*/, '').trim())
-      .map(q => q.replace(/^["“”](.*)["“”]$/, '$1')) // Remove surrounding quotes or smart quotes
+      .map(q => q.replace(/^["“”](.*)["“”]$/, '$1'))
       .filter(Boolean)
       .slice(0, 3);
 
-
     const docType = await askOpenAI('docType', context);
 
-    await PDFFile.findOneAndUpdate(
+    const updated = await PDFFile.findOneAndUpdate(
       { fileId },
-      { summary, questions, docType },
-      { upsert: true }
+      { summary, questions, docType, status: "ready" },
+      { new: true }
     );
+
+    if (!updated) {
+      console.error("No existing document found for fileId:", fileId);
+      return res.status(404).json({ error: "File not found for updating summary" });
+    }
 
     res.json({ summary, questions, docType });
   } catch (err) {
@@ -87,151 +104,14 @@ export const handleFileSummaryAndQuestions = async (req, res) => {
   }
 };
 
+export const getChatMessages = async (req, res) => {
+  const { fileId } = req.params;
 
-// export const handleFileSummaryAndQuestions = async (req, res) => {
-//   const { fileId } = req.params;
-
-//   try {
-//     const existing = await PDFFile.findOne({ fileId });
-
-//     if (existing?.summary && existing?.questions?.length > 0) {
-//       console.log('✅ Returning cached summary/questions');
-//       return res.json({
-//         summary: existing.summary,
-//         questions: existing.questions,
-//       });
-//     }
-
-//     const relevantChunks = await getRelevantChunks(fileId, 'Summarize the content of this document.');
-
-//     const context = relevantChunks
-//       .map(chunk => chunk.metadata?.text || '')
-//       .filter(Boolean);
-
-//     const summary = await askOpenAI('Summarize this document in 2–3 sentences.', context);
-
-//     const questionsRaw = await askOpenAI('Based on this document, generate 3 helpful questions someone might ask.', context);
-
-//     const suggestedQuestions = questionsRaw
-//       .split('\n')
-//       .map((q) => q.replace(/^\d+\.\s*/, '').trim())
-//       .filter(Boolean)
-//       .slice(0, 3);
-
-//     await PDFFile.findOneAndUpdate(
-//       { fileId },
-//       {
-//         summary,
-//         questions: suggestedQuestions,
-//       }
-//     );
-
-//     res.json({ summary, questions: suggestedQuestions });
-//   } catch (err) {
-//     console.error('❌ Summary/Question generation error:', err);
-//     res.status(500).json({ error: 'Failed to generate summary or questions' });
-//   }
-// };
-
-// import { getRelevantChunks } from '../services/pineconeService.js';
-// import { askOpenAI } from '../services/openaiService.js';
-
-// export const handleChat = async (req, res) => {
-//   const { fileId, question } = req.body;
-
-//   console.log('Chat request:', { fileId, question });
-
-
-//   try {
-//     const relevantChunks = await getRelevantChunks(fileId, question);
-
-//     console.log('Relevant chunks:', relevantChunks);
-
-//     if (!relevantChunks.length) {
-//       return res.status(404).json({ error: 'No relevant chunks found.' });
-//     }
-
-//     const context = relevantChunks
-//       .map((match) => match.metadata?.text || '')
-//       .filter(Boolean);
-
-//     const answer = await askOpenAI(question, context);
-
-//     res.json({ answer });
-//   } catch (err) {
-//     console.error('Chat error:', err);
-//     res.status(500).json({ error: 'Chat failed' });
-//   }
-// };
-
-// export const handleSummary = async (req, res) => {
-//   const { fileId } = req.params; // get fileId from URL params
-
-//   try {
-//     // Fetch relevant chunks for the entire document or summary prompt
-//     const relevantChunks = await getRelevantChunks(fileId, "Please provide a summary of the document.");
-
-//     if (!relevantChunks.length) {
-//       return res.status(404).json({ error: 'No relevant chunks found for summary.' });
-//     }
-
-//     // Extract text from metadata of chunks
-//     const context = relevantChunks
-//       .map(chunk => chunk.metadata?.text || '')
-//       .filter(Boolean);
-
-//     // Call OpenAI to generate summary based on the context
-//     const summary = await askOpenAI("Provide a concise summary based on the following context:", context);
-
-//     res.json({ summary });
-//   } catch (err) {
-//     console.error('Summary error:', err);
-//     res.status(500).json({ error: 'Failed to generate summary' });
-//   }
-// };
-
-// export const handleFileSummaryAndQuestions = async (req, res) => {
-//   const { fileId } = req.params;
-
-//   try {
-//     const existing = await PDFFile.findOne({ fileId });
-
-//     if (existing?.summary && existing?.questions?.length > 0) {
-//       console.log('✅ Returning cached summary/questions');
-//       return res.json({
-//         summary: existing.summary,
-//         questions: existing.questions,
-//       });
-//     }
-
-//     // fallback if no cache exists (shouldn't happen if saveToPinecone did its job)
-//     const relevantChunks = await getRelevantChunks(fileId, 'Summarize the content of this document.');
-
-//     // const context = relevantChunks.map((c) => c.metadata?.text).join('\n\n');
-//     const context = relevantChunks
-//       .map(chunk => chunk.metadata?.text || '')
-//       .filter(Boolean);
-
-//     const summary = await askOpenAI('Summarize this document in 2–3 sentences.', context);
-//     const questionsRaw = await askOpenAI('Based on this document, generate 3 helpful questions someone might ask.', context);
-
-//     const suggestedQuestions = questionsRaw
-//       .split('\n')
-//       .map((q) => q.replace(/^\d+\.\s*/, '').trim())
-//       .filter(Boolean)
-//       .slice(0, 3);
-
-//     await PDFFile.findOneAndUpdate(
-//       { fileId },
-//       {
-//         summary,
-//         questions: suggestedQuestions,
-//       }
-//     );
-
-//     res.json({ summary, questions: suggestedQuestions });
-//   } catch (err) {
-//     console.error('❌ Summary/Question generation error:', err);
-//     res.status(500).json({ error: 'Failed to generate summary or questions' });
-//   }
-// };
+  try {
+    const messages = await ChatMessage.find({ fileId }).sort({ createdAt: 1 });
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching chat messages:', error);
+    res.status(500).json({ error: 'Failed to fetch chat messages' });
+  }
+};

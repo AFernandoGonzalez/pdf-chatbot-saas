@@ -1,7 +1,7 @@
-// src/components/PDFUpload.jsx
-"use client";
-import { useState } from "react";
-import { uploadPDF } from "../utils/api";
+'use client';
+
+import { useState } from 'react';
+import { uploadPDF } from '../utils/api';
 
 export default function PDFUpload({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
@@ -16,14 +16,13 @@ export default function PDFUpload({ onUploadSuccess }) {
       try {
         setLoading(true);
         const { fileId, fileUrl } = await uploadPDF(file);
-        // 🔥 Send info back to parent so it can show PDF
         onUploadSuccess({
           fileId,
           fileUrl,
           fileName: file.name,
         });
       } catch (err) {
-        alert("Upload failed");
+        alert('Upload failed', err.message);
       } finally {
         setLoading(false);
       }
@@ -31,13 +30,17 @@ export default function PDFUpload({ onUploadSuccess }) {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <input type="file" accept="application/pdf" onChange={handleFileChange} />
+    <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
+      <input type="file" accept="application/pdf" onChange={handleFileChange} className="w-full text-sm" />
       <button
         onClick={handleUpload}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
+        disabled={loading || !file}
+        className={`w-full px-4 py-2 rounded text-white 
+          ${file ?
+          'bg-blue-600 hover:bg-blue-700' :
+          'bg-gray-400 cursor-not-allowed'}`}
       >
-        {loading ? "Uploading..." : "Upload PDF"}
+        {loading ? 'Uploading...' : 'Upload PDF'}
       </button>
     </div>
   );

@@ -1,175 +1,241 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import MessageBubble from './MessageBubble';
 
 export default function ChatBox({ pdfId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [summary, setSummary] = useState('Loading summary...');
+  const [summary, setSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(true);
   const [questions, setQuestions] = useState([]);
   const chatEndRef = useRef(null);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch summary and questions when pdfId changes
   useEffect(() => {
     if (!pdfId) {
       setSummary('No file selected.');
       setQuestions([]);
+      setLoadingSummary(false);
       return;
     }
 
-    async function fetchSummary() {
+    setLoadingSummary(true);
+    setSummary(null);
+    setQuestions([]);
+
+    let polling = true;
+
+    async function pollSummary() {
       try {
         const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`);
-        const data = await res.json();
-
-        if (res.ok) {
+        if (res.status === 202) {
+          if (polling) {
+            setTimeout(pollSummary, 3000);
+          }
+        } else if (res.ok) {
+          const data = await res.json();
           setSummary(data.summary || 'No summary available.');
           setQuestions(data.questions || []);
+          setLoadingSummary(false);
         } else {
           setSummary('Failed to load summary.');
           setQuestions([]);
+          setLoadingSummary(false);
         }
       } catch (err) {
         setSummary('Error loading summary.');
         setQuestions([]);
+        setLoadingSummary(false);
         console.error(err);
       }
     }
 
-    fetchSummary();
+    pollSummary();
+
+    return () => {
+      polling = false;
+    };
   }, [pdfId]);
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  useEffect(() => {
+    if (!pdfId) {
+      setMessages([]);
+      return;
+    }
 
-    const userMsg = { sender: 'user', text: input.trim() };
-    setMessages((prev) => [...prev, userMsg]);
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data.map((msg) => ({ sender: msg.sender, text: msg.text })));
+        } else {
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+        setMessages([]);
+      }
+    }
+
+    fetchMessages();
+  }, [pdfId]);
+
+  async function sendQuestion(question) {
+    if (!question.trim()) return;
+
+    setMessages((prev) => [...prev, { sender: 'user', text: question }]);
     setInput('');
+
+    setMessages((prev) => [...prev, { sender: 'bot', text: '' }]);
 
     try {
       const res = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId: pdfId, question: userMsg.text }),
+        body: JSON.stringify({ fileId: pdfId, question }),
       });
 
-      const data = await res.json();
-      const botMsg = { sender: 'bot', text: data.answer || 'No response' };
-      setMessages((prev) => [...prev, botMsg]);
-    } catch (err) {
-      const errorMsg = { sender: 'bot', text: 'Error fetching response.' };
-      setMessages((prev) => [...prev, errorMsg]);
-      console.error(err);
-    }
-  };
+      if (!res.body) throw new Error('No response body from server');
 
-  // Format summary with paragraphs and bullet points
-  function formatSummary(text) {
-    const lines = text.split('\n');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let answer = '';
 
-    const elements = [];
-    let listItems = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        answer += decoder.decode(value, { stream: true });
 
-    lines.forEach((line, idx) => {
-      if (line.trim().startsWith('- ')) {
-        listItems.push(line.trim().substring(2));
-      } else {
-        if (listItems.length) {
-          elements.push(
-            <ul key={`ul-${idx}`} className="list-disc list-inside mb-3 ml-4 text-gray-700">
-              {listItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          );
-          listItems = [];
-        }
-        if (line.trim() !== '') {
-          elements.push(
-            <p key={`p-${idx}`} className="mb-3 leading-relaxed text-gray-800">
-              {line}
-            </p>
-          );
-        }
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { sender: 'bot', text: answer };
+          return updated;
+        });
       }
-    });
-
-    if (listItems.length) {
-      elements.push(
-        <ul key="ul-last" className="list-disc list-inside mb-3 ml-4 text-gray-700">
-          {listItems.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ul>
-      );
+    } catch (err) {
+      console.error('Chat error', err);
+      setMessages((prev) => [...prev, { sender: 'bot', text: 'Error getting response.' }]);
     }
-
-    return elements;
   }
 
-  // Remove quotes from questions (if any)
-  const cleanQuestions = questions.map(q => q.replace(/^["“”](.*)["“”]$/, '$1'));
+  async function sendMessage(e) {
+    e?.preventDefault();
+    await sendQuestion(input);
+  }
+
+  function formatSummary(text) {
+    if (!text) return null;
+    const cut = text.split(/Suggested Questions:/i)[0].trim();
+    const lines = cut.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    const out = [];
+    let list = [];
+    lines.forEach((line, i) => {
+      if (line.startsWith('-')) {
+        list.push(line.replace(/^-+\s*/, ''));
+      } else {
+        if (list.length) {
+          out.push(
+            <ul key={`ul-${i}`} className="list-disc list-inside mb-2 text-sm text-gray-700 ml-4">
+              {list.map((li, idx) => (
+                <li key={idx}>{li}</li>
+              ))}
+            </ul>,
+          );
+          list = [];
+        }
+        out.push(
+          <p key={`p-${i}`} className="text-sm text-gray-800 mb-2">
+            {line}
+          </p>,
+        );
+      }
+    });
+    if (list.length) {
+      out.push(
+        <ul key="ul-last" className="list-disc list-inside mb-2 text-sm text-gray-700 ml-4">
+          {list.map((li, idx) => (
+            <li key={idx}>{li}</li>
+          ))}
+        </ul>,
+      );
+    }
+    return out;
+  }
+
+  const cleanedQuestions = (questions || []).map((q) => q.replace(/^["“”](.*)["“”]$/, '$1'));
 
   return (
-    <div className="flex flex-col h-full max-w-xl mx-auto p-4 bg-white shadow-lg rounded-lg">
-      {/* Summary */}
-      <section className="mb-6">
-        <h3 className="text-xl font-semibold mb-3 border-b border-gray-300 pb-1">Summary</h3>
-        <div className="bg-gray-50 p-4 rounded-md max-h-48 overflow-auto text-sm">
-          {formatSummary(summary)}
-        </div>
-      </section>
+    <div className="flex flex-col h-full w-full max-w-2xl mx-auto bg-white shadow-md rounded-lg">
+      <div className="px-4 py-3 border-b border-gray-200 font-semibold text-lg text-gray-700">
+        Chat with your PDF
+      </div>
 
-      {/* Suggested Questions */}
-      <section className="mb-6">
-        <h4 className="text-md font-semibold mb-3">Suggested Questions</h4>
-        <ul className="space-y-2 text-sm">
-          {cleanQuestions.map((q, idx) => (
-            <li
-              key={idx}
-              onClick={() => setInput(q)}
-              className="bg-white p-3 rounded-md shadow-sm cursor-pointer hover:bg-blue-50 transition"
-              title="Click to ask this question"
-            >
-              {q}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Chat Messages */}
-      <section className="flex-1 overflow-y-auto p-4 border border-gray-200 rounded-md mb-4 bg-gray-50">
-        {messages.length === 0 && (
-          <p className="text-gray-400 text-center mt-10 select-none">Start the conversation by asking a question...</p>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 rounded-b-lg">
+        {summary && (
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <strong className="block mb-2 text-gray-800">Summary:</strong>
+            <p className="text-gray-700 whitespace-pre-wrap">{formatSummary(summary)}</p>
+          </div>
         )}
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} sender={msg.sender} text={msg.text} />
-        ))}
-        <div ref={chatEndRef} />
-      </section>
 
-      {/* Input */}
-      <form onSubmit={sendMessage} className="flex gap-2">
+        {cleanedQuestions.length > 0 && (
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <strong className="block mb-3 text-gray-800">Suggested Questions:</strong>
+            <div className="flex flex-wrap gap-3">
+              {cleanedQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => sendQuestion(q)}
+                  className={`bg-blue-100 hover:bg-blue-200 text-blue-800 
+                    rounded-md px-4 py-2 text-sm font-medium transition`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              className={`max-w-[75%] p-3 rounded-lg shadow-sm whitespace-pre-wrap break-words
+                ${m.sender === 'user'
+                  ? 'bg-blue-600 text-white self-end rounded-br-none'
+                  : 'bg-white text-gray-900 self-start rounded-bl-none border border-gray-200'
+                }`}
+            >
+              {m.text}
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+      </div>
+
+      <form
+        onSubmit={sendMessage}
+        className="flex items-center gap-3 border-t border-gray-200 p-4 bg-white rounded-b-lg"
+      >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          type="text"
-          placeholder="Ask something..."
-          className="flex-1 px-4 py-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Ask something about this PDF..."
+          disabled={loadingSummary}
+          className={`flex-1 border border-gray-300 rounded-md px-4 py-2 
+            text-gray-900 placeholder-gray-400 focus:outline-none 
+            focus:ring-2 focus:ring-blue-500`}
         />
         <button
           type="submit"
-          disabled={!input.trim()}
-          className={`px-6 py-3 rounded-md text-white font-semibold transition ${
-            input.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
-          }`}
+          disabled={!input.trim() || loadingSummary}
+          className={`px-5 py-2 rounded-md text-white font-semibold
+            ${input.trim() && !loadingSummary ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}`}
         >
           Send
         </button>
