@@ -18,10 +18,7 @@ export async function getEmbedding(text) {
 
 export async function askOpenAI(mode, contextChunks) {
   const context = contextChunks.join('\n\n');
-
-  console.log('Asking OpenAI with context:', context.length > 100 ? context.slice(0, 100) + '...' : context);
   
-
   let questionPrompt = '';
 
   switch (mode) {
@@ -80,8 +77,6 @@ If unsure, respond with "Unknown".`;
 
 export async function askOpenAIStream(question, contextChunks) {
   const context = contextChunks.join('\n\n');
-
-  console.log('Asking OpenAI with context:', context);
   
   return await openai.chat.completions.create({
     model: 'gpt-4o-mini',

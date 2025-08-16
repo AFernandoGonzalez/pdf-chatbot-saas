@@ -5,7 +5,6 @@ import { useAuth } from '../providers/AuthProvider';
 export default function Navbar() {
     const { user, loading } = useAuth();
 
-    console.log('Navbar user:', user);
     const signOut = async () => {
         await firebaseAuth.signOut();
         setUser(null);

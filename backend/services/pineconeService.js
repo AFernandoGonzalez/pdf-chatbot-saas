@@ -11,9 +11,7 @@ const pinecone = new Pinecone({
 
 const index = pinecone.index(process.env.PINECONE_INDEX);
 
-// export async function saveToPinecone(fileId, chunks, filename) {
 export async function saveToPinecone(fileId, chunks, filename, userId) {
-  console.log(`Saving ${chunks.length} chunks to Pinecone under fileId: ${fileId} and userId: ${userId}`);
 
   if (!Array.isArray(chunks)) {
     throw new Error('Expected chunks to be an array of strings');
