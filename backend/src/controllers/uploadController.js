@@ -1,4 +1,4 @@
-import pdfParse from "pdf-parse";
+import parsePDF from "../services/pdfParser.js";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { saveToPinecone } from "../services/pineconeService.js";
 import { uploadFileToR2 } from "../services/r2Service.js";
@@ -26,8 +26,7 @@ export const handleUpload = async (req, res) => {
     await uploadFileToR2(fileBuffer, fileName, mimetype);
     const publicUrl = `https://pub-2d3a5bfbfb3a40efa9a5a087b2c28b0b.r2.dev/${fileName}`;
 
-    const data = await pdfParse(fileBuffer);
-    const text = data.text;
+    const text = await parsePDF(fileBuffer);
 
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
