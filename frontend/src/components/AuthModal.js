@@ -1,8 +1,15 @@
 'use client';
-import { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
+import { useState } from 'react';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
+import Image from 'next/image';
 import { auth } from '../utils/firebase';
+import { syncUserWithBackend } from '../utils/api';
 
 export default function AuthModal({ onClose }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -13,13 +20,26 @@ export default function AuthModal({ onClose }) {
   async function handleAuth(e) {
     e.preventDefault();
     try {
+      let userCredential;
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
       }
-      await syncUserWithBackend();
 
+      await syncUserWithBackend(userCredential.user);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+
+      await syncUserWithBackend(userCredential.user);
       onClose();
     } catch (err) {
       setError(err.message);
@@ -57,6 +77,24 @@ export default function AuthModal({ onClose }) {
             {isSignUp ? 'Sign Up' : 'Login'}
           </button>
         </form>
+
+        <div className="mt-4">
+          <button
+            onClick={handleGoogleSignIn}
+            className={`w-full flex items-center justify-center gap-2 
+              border border-gray-300 py-2 rounded hover:bg-gray-50`}
+          >
+            <Image
+              src="https://www.svgrepo.com/show/355037/google.svg"
+              alt="Google logo"
+              width={20}
+              height={20}
+              className="w-5 h-5"
+            />
+            Continue with Google
+          </button>
+        </div>
+
         <p className="text-sm mt-4 text-center">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button

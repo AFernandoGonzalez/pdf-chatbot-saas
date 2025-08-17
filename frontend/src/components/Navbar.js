@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '../providers/AuthProvider';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function Navbar() {
     const { user, loading } = useAuth();

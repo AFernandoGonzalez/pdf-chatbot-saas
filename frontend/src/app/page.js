@@ -4,7 +4,7 @@ import { useAtom } from 'jotai';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { fetchUploadedFiles } from '../utils/api';
+import { fetchUploadedFiles, uploadPDF, uploadImage } from '../utils/api';
 import { filesAtom } from '../store/atoms';
 import { useAuth } from '../providers/AuthProvider';
 import AuthModal from '../components/AuthModal';
@@ -20,31 +20,15 @@ export default function HomePage() {
   if (!user) return <AuthModal onClose={() => setShowModal(false)} />;
 
   async function uploadAndNavigate(file) {
-    const fd = new FormData();
-    fd.append('file', file);
-
-    const endpoint =
-      file.type === 'application/pdf'
-        ? '/api/upload/upload-pdf'
-        : file.type.startsWith('image/')
-          ? '/api/upload/upload-img'
-          : null;
-
-    if (!endpoint) return alert('Unsupported file type.');
-
     try {
-      const idToken = await user.getIdToken();
-
-      const res = await fetch(`http://localhost:8000${endpoint}`, {
-        method: 'POST',
-        body: fd,
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Upload failed');
+      let data;
+      if (file.type === 'application/pdf') {
+        data = await uploadPDF(file, user);
+      } else if (file.type.startsWith('image/')) {
+        data = await uploadImage(file, user);
+      } else {
+        return alert('Unsupported file type.');
+      }
 
       const allFiles = await fetchUploadedFiles(user);
       setFiles(allFiles);
@@ -60,14 +44,10 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (
-      file.type === 'application/pdf' ||
-      file.type === 'image/jpeg' ||
-      file.type === 'image/png'
-    ) {
+    if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
       uploadAndNavigate(file);
     } else {
-      alert('Please select a PDF or a JPEG/PNG image.');
+      alert('Please select a PDF or image file.');
     }
   }
 
@@ -104,7 +84,7 @@ export default function HomePage() {
               Click to upload, or drag & drop your PDF here
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Supports PDF. Upload and open chat instantly.
+              Supports PDF and images. Upload and open chat instantly.
             </p>
 
             <input
@@ -120,7 +100,7 @@ export default function HomePage() {
                 onClick={() => inputRef.current?.click()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-md"
               >
-                Choose PDF
+                Choose File
               </button>
             </div>
           </div>

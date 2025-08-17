@@ -12,8 +12,8 @@ export default function PDFViewer({ fileUrl }) {
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
 
-  const onLoadSuccess = ({ loadedNumPages }) => {
-    setNumPages(loadedNumPages);
+  const onLoadSuccess = ({ numPages: nextNumPages }) => {
+    setNumPages(nextNumPages);
     setPageNumber(1);
   };
 
@@ -32,14 +32,16 @@ export default function PDFViewer({ fileUrl }) {
             loading={<p className="text-center text-gray-500">Loading PDF...</p>}
             error={<p className="text-center text-red-500">Failed to load PDF.</p>}
           >
-            <Page
-              pageNumber={pageNumber}
-              width={Math.min(640, window.innerWidth - 48)}
-              scale={scale > 1 ? scale : 1}
-              loading={<p className="text-gray-400">Loading page {pageNumber}...</p>}
-              error={<p className="text-red-500">Failed to load page {pageNumber}</p>}
-              className="rounded-lg shadow-sm border border-gray-100"
-            />
+            {numPages && (
+              <Page
+                pageNumber={pageNumber}
+                width={Math.min(640, window.innerWidth - 48)}
+                scale={scale > 1 ? scale : 1}
+                loading={<p className="text-gray-400">Loading page {pageNumber}...</p>}
+                error={<p className="text-red-500">Failed to load page {pageNumber}</p>}
+                className="rounded-lg shadow-sm border border-gray-100"
+              />
+            )}
           </Document>
         </div>
       </div>

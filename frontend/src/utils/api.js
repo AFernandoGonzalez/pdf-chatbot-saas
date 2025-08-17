@@ -1,3 +1,6 @@
+/**
+ * Sync the logged-in Firebase user with your backend.
+ */
 export async function syncUserWithBackend(firebaseUser) {
   if (!firebaseUser) return null;
 
@@ -21,12 +24,36 @@ export async function syncUserWithBackend(firebaseUser) {
   }
 }
 
-export async function uploadPDF(file, firebaseUser) {
+/**
+ * Upload a PDF file
+ */
+export async function uploadPDF(file, user) {
+  const fd = new FormData();
+  fd.append('file', file);
+
+  const idToken = await user.getIdToken();
+  const res = await fetch('http://localhost:8000/api/upload/upload-pdf', {
+    method: 'POST',
+    body: fd,
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || 'Upload failed');
+  return data;
+}
+
+/**
+ * Upload an image file
+ */
+export async function uploadImage(file, firebaseUser) {
   const token = await firebaseUser.getIdToken();
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch('http://localhost:8000/api/upload', {
+  const response = await fetch('http://localhost:8000/api/upload/upload-img', {
     method: 'POST',
     body: formData,
     headers: {
@@ -34,27 +61,71 @@ export async function uploadPDF(file, firebaseUser) {
     },
   });
 
-  if (!response.ok) {
-    throw new Error('Upload failed');
-  }
-
-  const data = await response.json();
-
-  return {
-    fileId: data.fileId,
-    fileUrl: data.fileUrl,
-  };
+  if (!response.ok) throw new Error('Upload failed');
+  return response.json();
 }
 
-export async function fetchUploadedFiles(firebaseUser) {
-  if (!firebaseUser) return [];
-  const token = await firebaseUser.getIdToken();
-
+/**
+ * Fetch all uploaded files for the user
+ */
+export async function fetchUploadedFiles(user) {
+  const token = await user.getIdToken();
   const res = await fetch('http://localhost:8000/api/files', {
     headers: { Authorization: `Bearer ${token}` },
   });
-
   if (!res.ok) throw new Error('Failed to fetch files');
-
   return res.json();
+}
+
+/**
+ * Fetch a single file by ID
+ */
+export async function fetchFile(fileId, user) {
+  const token = await user.getIdToken();
+  const res = await fetch(`http://localhost:8000/api/files/${fileId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch file');
+  return res.json();
+}
+
+/**
+ * Fetch summary and suggested questions for a PDF
+ */
+export async function fetchSummaryAndQuestions(pdfId, user) {
+  const token = await user.getIdToken();
+  const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 202) throw new Error('Failed to fetch summary/questions');
+  return res;
+}
+
+/**
+ * Fetch all chat messages for a PDF
+ */
+export async function fetchChatMessages(pdfId, user) {
+  const token = await user.getIdToken();
+  const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch chat messages');
+  return res.json();
+}
+
+/**
+ * Send a new chat message
+ */
+export async function sendChatMessage({ pdfId, question, user }) {
+  const token = await user.getIdToken();
+  const res = await fetch('http://localhost:8000/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ fileId: pdfId, question, userId: user.uid }),
+  });
+  if (!res.body) throw new Error('No response body from server');
+  return res;
 }

@@ -4,21 +4,9 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '../../../providers/AuthProvider';
+import { fetchFile } from '../../../utils/api';
 import ChatBox from '@/components/ChatBox';
 import PDFViewer from '@/components/PDFViewer';
-
-async function fetchFile(fileId, firebaseUser) {
-  if (!firebaseUser) throw new Error('Not logged in');
-  const token = await firebaseUser.getIdToken();
-
-  const res = await fetch(`http://localhost:8000/api/files/${fileId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-
-  if (!res.ok) throw new Error('File not found or access denied');
-  return res.json();
-}
 
 export default function PDFChatPage({ params }) {
   const { fileId } = use(params);

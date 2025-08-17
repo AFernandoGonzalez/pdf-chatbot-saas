@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../providers/AuthProvider';
+import { fetchSummaryAndQuestions, fetchChatMessages, sendChatMessage  } from '@/utils/api';
 
 export default function ChatBox({ pdfId }) {
   const { user } = useAuth();
@@ -28,10 +29,7 @@ export default function ChatBox({ pdfId }) {
 
     async function pollSummary() {
       try {
-        const token = await user.getIdToken();
-        const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetchSummaryAndQuestions(pdfId, user);
 
         if (res.status === 202) {
           if (polling) setTimeout(pollSummary, 3000);
@@ -66,27 +64,22 @@ export default function ChatBox({ pdfId }) {
       return;
     }
 
-    async function fetchMessages() {
+    async function loadMessages() {
       try {
-        const token = await user.getIdToken();
-        const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data.map((msg) => ({ sender: msg.sender, text: msg.text })));
-        } else {
-          setMessages([]);
-        }
+        const data = await fetchChatMessages(pdfId, user);
+        setMessages(data.map((msg) => ({ sender: msg.sender, text: msg.text })));
       } catch (err) {
         console.error('Failed to load messages:', err);
         setMessages([]);
       }
     }
 
-    fetchMessages();
+    loadMessages();
   }, [pdfId, user]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   async function sendQuestion(question) {
     if (!question.trim() || !user) return;
@@ -96,15 +89,7 @@ export default function ChatBox({ pdfId }) {
     setMessages((prev) => [...prev, { sender: 'bot', text: '' }]);
 
     try {
-      const token = await user.getIdToken();
-      const res = await fetch('http://localhost:8000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ fileId: pdfId, question, userId: user.uid }),
-      });
+      const res = await sendChatMessage({ pdfId, question, user });
 
       if (!res.body) throw new Error('No response body from server');
 
@@ -192,7 +177,8 @@ export default function ChatBox({ pdfId }) {
                 <button
                   key={idx}
                   onClick={() => sendQuestion(q)}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-md px-4 py-2 text-sm font-medium transition"
+                  className={`bg-blue-100 hover:bg-blue-200 text-blue-800
+                    rounded-md px-4 py-2 text-sm font-medium transition`}
                 >
                   {q}
                 </button>
@@ -227,7 +213,8 @@ export default function ChatBox({ pdfId }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something about this PDF..."
           disabled={loadingSummary}
-          className="flex-1 border border-gray-300 rounded-md px-4 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`flex-1 border border-gray-300 rounded-md px-4 py-2 text-gray-900
+            placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
         />
         <button
           type="submit"

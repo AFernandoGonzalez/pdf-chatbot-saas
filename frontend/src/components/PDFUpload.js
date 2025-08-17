@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { uploadPDF } from '../utils/api';
-import { useAuth } from '../providers/AuthProvider';
+import { uploadPDF } from '@/utils/api';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function PDFUpload({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
