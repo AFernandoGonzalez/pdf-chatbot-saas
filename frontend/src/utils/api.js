@@ -1,3 +1,5 @@
+const API_ENDPOINT = process.env.NEXT_PUBLIC_API_ENDPOINT;
+
 /**
  * Sync the logged-in Firebase user with your backend.
  */
@@ -7,7 +9,7 @@ export async function syncUserWithBackend(firebaseUser) {
   try {
     const token = await firebaseUser.getIdToken();
 
-    const res = await fetch('http://localhost:8000/api/users/me', {
+    const res = await fetch(`${API_ENDPOINT}/api/users/me`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -32,7 +34,7 @@ export async function uploadPDF(file, user) {
   fd.append('file', file);
 
   const idToken = await user.getIdToken();
-  const res = await fetch('http://localhost:8000/api/upload/upload-pdf', {
+  const res = await fetch(`${API_ENDPOINT}/api/upload/upload-pdf`, {
     method: 'POST',
     body: fd,
     headers: {
@@ -53,7 +55,7 @@ export async function uploadImage(file, firebaseUser) {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch('http://localhost:8000/api/upload/upload-img', {
+  const response = await fetch(`${API_ENDPOINT}/api/upload/upload-img`, {
     method: 'POST',
     body: formData,
     headers: {
@@ -70,7 +72,7 @@ export async function uploadImage(file, firebaseUser) {
  */
 export async function fetchUploadedFiles(user) {
   const token = await user.getIdToken();
-  const res = await fetch('http://localhost:8000/api/files', {
+  const res = await fetch(`${API_ENDPOINT}/api/files`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to fetch files');
@@ -82,7 +84,7 @@ export async function fetchUploadedFiles(user) {
  */
 export async function fetchFile(fileId, user) {
   const token = await user.getIdToken();
-  const res = await fetch(`http://localhost:8000/api/files/${fileId}`, {
+  const res = await fetch(`${API_ENDPOINT}/api/files/${fileId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to fetch file');
@@ -94,7 +96,7 @@ export async function fetchFile(fileId, user) {
  */
 export async function fetchSummaryAndQuestions(pdfId, user) {
   const token = await user.getIdToken();
-  const res = await fetch(`http://localhost:8000/api/chat/file-info/${pdfId}`, {
+  const res = await fetch(`${API_ENDPOINT}/api/chat/file-info/${pdfId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok && res.status !== 202) throw new Error('Failed to fetch summary/questions');
@@ -106,7 +108,7 @@ export async function fetchSummaryAndQuestions(pdfId, user) {
  */
 export async function fetchChatMessages(pdfId, user) {
   const token = await user.getIdToken();
-  const res = await fetch(`http://localhost:8000/api/chat/messages/${pdfId}`, {
+  const res = await fetch(`${API_ENDPOINT}/api/chat/messages/${pdfId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to fetch chat messages');
@@ -118,7 +120,7 @@ export async function fetchChatMessages(pdfId, user) {
  */
 export async function sendChatMessage({ pdfId, question, user }) {
   const token = await user.getIdToken();
-  const res = await fetch('http://localhost:8000/api/chat', {
+  const res = await fetch(`${API_ENDPOINT}/api/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
