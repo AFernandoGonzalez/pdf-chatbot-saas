@@ -16,6 +16,10 @@ const PORT = process.env.PORT;
 app.use(cors());
 app.use(express.json());
 
+// API routes
+app.get('/', (req, res) => {
+  res.send('Welcome to the PDF Chatbot API');
+});
 
 app.get('/api', (req, res) => {
   res.send('Welcome to the PDF Chatbot API');
@@ -31,7 +35,7 @@ app.use((req, res) => {
 });
 
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
 
