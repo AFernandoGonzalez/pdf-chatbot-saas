@@ -13,7 +13,7 @@ export default function Sidebar({ open = false, onClose, className = '' }) {
   const [files, setFiles] = useAtom(filesAtom);
   const [selectedFileId, setSelectedFileId] = useAtom(selectedFileIdAtom);
   const [searchTerm, setSearchTerm] = useState('');
-  const { user, loading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [loadingFiles, setLoadingFiles] = useState(true);
 
   const dummyFiles = [
