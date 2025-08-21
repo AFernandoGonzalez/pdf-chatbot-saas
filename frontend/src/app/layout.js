@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Provider as JotaiProvider } from 'jotai';
 import { AuthProvider } from '../providers/AuthProvider';
 import Navbar from '../components/Navbar';
@@ -7,15 +8,25 @@ import Sidebar from '../components/Sidebar';
 import '../styles/globals.css';
 
 export default function RootLayout({ children }) {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => setMobileSidebarOpen((prev) => !prev);
+  const closeSidebar = () => setMobileSidebarOpen(false);
+
   return (
     <html lang="en">
-      <body>
+      <body className="h-screen overflow-hidden">
         <AuthProvider>
           <JotaiProvider>
-            <Navbar />
-            <div className="flex min-h-screen w-full">
-              <Sidebar />
-              <main className="flex-1 bg-gray-50 max-w-screen-xl mx-auto px-2 sm:px-6 w-full">
+            <Navbar onHamburgerClick={toggleSidebar} />
+            <div className="flex">
+              <Sidebar className="hidden md:flex" />
+              <Sidebar
+                open={mobileSidebarOpen}
+                onClose={closeSidebar}
+                className="md:hidden"
+              />
+              <main className="flex-1 bg-gray-50 overflow-auto">
                 {children}
               </main>
             </div>

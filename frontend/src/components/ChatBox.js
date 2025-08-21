@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../providers/AuthProvider';
-import { fetchSummaryAndQuestions, fetchChatMessages, sendChatMessage  } from '@/utils/api';
+import { fetchSummaryAndQuestions, fetchChatMessages, sendChatMessage } from '@/utils/api';
 
 export default function ChatBox({ pdfId }) {
   const { user } = useAuth();
@@ -11,6 +11,7 @@ export default function ChatBox({ pdfId }) {
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [questions, setQuestions] = useState([]);
+  const [loadingResponse, setLoadingResponse] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -82,7 +83,9 @@ export default function ChatBox({ pdfId }) {
   }, [messages]);
 
   async function sendQuestion(question) {
-    if (!question.trim() || !user) return;
+    if (!question.trim() || !user || loadingResponse) return;
+
+    setLoadingResponse(true);
 
     setMessages((prev) => [...prev, { sender: 'user', text: question }]);
     setInput('');
@@ -111,6 +114,8 @@ export default function ChatBox({ pdfId }) {
     } catch (err) {
       console.error('Chat error', err);
       setMessages((prev) => [...prev, { sender: 'bot', text: 'Error getting response.' }]);
+    } finally {
+      setLoadingResponse(false);
     }
   }
 
@@ -162,13 +167,21 @@ export default function ChatBox({ pdfId }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 rounded-b-lg">
-        {summary && (
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-            <strong className="block mb-2 text-gray-800">Summary:</strong>
-            <div className="text-gray-700 whitespace-pre-wrap">{formatSummary(summary)}</div>
+        {loadingSummary && messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full w-full text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2" />
+            Loading PDF summary and messages...
           </div>
+        ) : (
+          <>
+            {summary && (
+              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <strong className="block mb-2 text-gray-800">Summary:</strong>
+                <div className="text-gray-700 whitespace-pre-wrap">{formatSummary(summary)}</div>
+              </div>
+            )}
+          </>
         )}
-
         {cleanedQuestions.length > 0 && (
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             <strong className="block mb-3 text-gray-800">Suggested Questions:</strong>
@@ -177,6 +190,7 @@ export default function ChatBox({ pdfId }) {
                 <button
                   key={idx}
                   onClick={() => sendQuestion(q)}
+                  disabled={loadingResponse}
                   className={`bg-blue-100 hover:bg-blue-200 text-blue-800
                     rounded-md px-4 py-2 text-sm font-medium transition`}
                 >
@@ -206,25 +220,29 @@ export default function ChatBox({ pdfId }) {
 
       <form
         onSubmit={sendMessage}
-        className="flex items-center gap-3 border-t border-gray-200 p-4 bg-white rounded-b-lg"
+        className="
+          flex flex-col sm:flex-row items-center gap-2 sm:gap-3
+          border-t border-gray-200 p-4 bg-white rounded-b-lg
+        "
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask something about this PDF..."
           disabled={loadingSummary}
-          className={`flex-1 border border-gray-300 rounded-md px-4 py-2 text-gray-900
-            placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          className={`w-full sm:flex-1 border border-gray-300 rounded-md px-4 py-2 text-gray-900
+      placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
         />
         <button
           type="submit"
           disabled={!input.trim() || loadingSummary}
-          className={`px-5 py-2 rounded-md text-white font-semibold
-            ${input.trim() && !loadingSummary ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}`}
+          className={`w-full sm:w-auto px-5 py-2 rounded-md text-white font-semibold
+      ${input.trim() && !loadingSummary ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}`}
         >
           Send
         </button>
       </form>
+
     </div>
   );
 }
