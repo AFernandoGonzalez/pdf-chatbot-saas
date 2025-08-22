@@ -7,23 +7,22 @@ export const getOrCreateUser = async (req, res) => {
 
     const { uid, email, name: displayName, picture: photoURL } = firebaseUser;
 
-    let user = await User.findOne({ uid });
-
-    if (!user) {
-      user = await User.create({
-        uid,
-        email,
-        displayName,
-        photoURL,
-        lastLogin: new Date()
-      });
-    } else {
-      user.email = email;
-      user.displayName = displayName || user.displayName;
-      user.photoURL = photoURL || user.photoURL;
-      user.lastLogin = new Date();
-      await user.save();
-    }
+    const user = await User.findOneAndUpdate(
+      { uid },
+      {
+        $set: {
+          email,
+          displayName: displayName || undefined,
+          photoURL: photoURL || undefined,
+          lastLogin: new Date()
+        }
+      },
+      { 
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
     res.json(user);
   } catch (err) {
