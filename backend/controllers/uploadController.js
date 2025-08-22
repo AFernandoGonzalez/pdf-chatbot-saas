@@ -33,7 +33,6 @@ export const handleUpload = async (req, res) => {
       chunkOverlap: 200,
     });
     const chunks = await splitter.splitText(text);
-
     await saveToPinecone(fileId, chunks, originalname, userId);
 
 
