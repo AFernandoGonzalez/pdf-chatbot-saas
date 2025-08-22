@@ -48,11 +48,20 @@ export default function AuthModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-      <div className="bg-white rounded-xl p-8 shadow-lg w-[400px]">
+      <div className="relative bg-white rounded-xl p-8 shadow-lg w-[400px]">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold"
+        >
+          ×
+        </button>
+
         <h2 className="text-2xl font-bold mb-4">
           {isSignUp ? 'Create Account' : 'Login'}
         </h2>
+
         {error && <p className="text-red-500 mb-2">{error}</p>}
+
         <form onSubmit={handleAuth} className="space-y-4">
           <input
             type="email"
@@ -81,8 +90,8 @@ export default function AuthModal({ onClose }) {
         <div className="mt-4">
           <button
             onClick={handleGoogleSignIn}
-            className={`w-full flex items-center justify-center gap-2 
-              border border-gray-300 py-2 rounded hover:bg-gray-50`}
+            className="w-full flex items-center justify-center
+            gap-2 border border-gray-300 py-2 rounded hover:bg-gray-50"
           >
             <Image
               src="https://www.svgrepo.com/show/355037/google.svg"

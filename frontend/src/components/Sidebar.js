@@ -16,15 +16,9 @@ export default function Sidebar({ open = false, onClose, className = '' }) {
   const { user, signOut } = useAuth();
   const [loadingFiles, setLoadingFiles] = useState(true);
 
-  const dummyFiles = [
-    { fileId: 'demo1', originalName: 'Sample PDF 1', uploadedAt: new Date() },
-    { fileId: 'demo2', originalName: 'Sample PDF 2', uploadedAt: new Date() },
-  ];
-
   const fetchFiles = useCallback(async () => {
     setLoadingFiles(true);
     if (!user) {
-      setFiles(dummyFiles);
       setLoadingFiles(false);
       return;
     }
@@ -107,7 +101,6 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 truncate">TalkPDF</h2>
         {onClose && (
           <button onClick={onClose} className="md:hidden text-gray-600">
             ✕

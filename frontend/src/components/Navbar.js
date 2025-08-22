@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -40,19 +41,12 @@ export default function Navbar({ onHamburgerClick }) {
           </svg>
         </button>
 
-        <span className="text-xl font-bold text-blue-600">TalkPDF</span>
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <span className="text-xl font-bold text-blue-600">TalkPDF</span>
+        </Link>
       </div>
 
       <div className="flex items-center space-x-4">
-        {!loading && !user && (
-          <a
-            href="/login"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-          >
-            Log in
-          </a>
-        )}
-
         {!loading && user && (
           <div className="relative">
             <button className="flex items-center space-x-2 focus:outline-none">

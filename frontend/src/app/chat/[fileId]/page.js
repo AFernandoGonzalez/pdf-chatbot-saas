@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { useAuth } from '../../../providers/AuthProvider';
 import { fetchFile } from '../../../utils/api';
 import ChatBox from '@/components/ChatBox';
-// import PDFViewer from '@/components/PDFViewer';
 
 const PDFViewer = dynamic(() => import('@/components/PDFViewer'), { ssr: false });
 
