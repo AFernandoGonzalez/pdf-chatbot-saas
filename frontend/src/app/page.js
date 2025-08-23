@@ -85,8 +85,8 @@ export default function HomePage() {
           <section
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-gray-300 rounded-lg 
-              p-6 sm:p-10 md:p-12 flex flex-col items-center justify-center 
+            className="border-2 border-dashed border-gray-300 rounded-lg
+              p-6 sm:p-10 md:p-12 flex flex-col items-center justify-center
               bg-white text-center"
           >
             <p className="text-lg sm:text-xl font-medium">
@@ -107,7 +107,7 @@ export default function HomePage() {
             <div className="mt-4 sm:mt-6">
               <button
                 onClick={() => inputRef.current?.click()}
-                className="px-4 py-2 sm:px-6 sm:py-2 bg-blue-600 text-white 
+                className="px-4 py-2 sm:px-6 sm:py-2 bg-blue-600 text-white
                   rounded-md text-sm sm:text-base hover:bg-blue-700"
               >
                 Choose File
