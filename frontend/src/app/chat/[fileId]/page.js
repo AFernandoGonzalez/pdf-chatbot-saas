@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '../../../providers/AuthProvider';
 import { fetchFile } from '../../../utils/api';
@@ -10,8 +10,9 @@ import ChatBox from '@/components/ChatBox';
 
 const PDFViewer = dynamic(() => import('@/components/PDFViewer'), { ssr: false });
 
-export default function PDFChatPage({ params }) {
-  const { fileId } = use(params);
+export default function PDFChatPage() {
+  const params = useParams();
+  const { fileId } = params;
   const router = useRouter();
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
@@ -39,7 +40,7 @@ export default function PDFChatPage({ params }) {
   const isImage = /\.(jpe?g|png|gif)$/i.test(fileUrl);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
       <div className="hidden md:flex flex-1 p-4 justify-center items-start min-h-0 overflow-auto">
         {loadingFile && (
           <p className="text-gray-500 text-center text-lg animate-pulse">

@@ -20,12 +20,7 @@ export default function RootLayout({ children }) {
           <JotaiProvider>
             <Navbar onHamburgerClick={toggleSidebar} />
             <div className="flex">
-              <Sidebar className="hidden md:flex" />
-              <Sidebar
-                open={mobileSidebarOpen}
-                onClose={closeSidebar}
-                className="md:hidden"
-              />
+              <Sidebar open={mobileSidebarOpen} onClose={closeSidebar} />
               <main className="flex-1 bg-gray-50 overflow-auto">
                 {children}
               </main>
