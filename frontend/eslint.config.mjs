@@ -1,47 +1,47 @@
-import globals from "globals";
-import pluginReact from "eslint-plugin-react";
-import { defineConfig } from "eslint/config";
+import globals from 'globals';
+import pluginReact from 'eslint-plugin-react';
+import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
   {
     ignores: [
       // Build output
-      ".next/**",
-      "out/**",
-      "dist/**",
-      "build/**",
+      '.next/**',
+      'out/**',
+      'dist/**',
+      'build/**',
 
       // Dependencies
-      "node_modules/**",
+      'node_modules/**',
 
       // Cache
-      ".cache/**",
-      ".eslintcache",
-      ".npm/**",
-      ".temp/**",
+      '.cache/**',
+      '.eslintcache',
+      '.npm/**',
+      '.temp/**',
 
       // Environment files
-      ".env*",
-      "!.env.example",
+      '.env*',
+      '!.env.example',
 
       // Config files
-      "next.config.mjs",
-      "postcss.config.mjs",
-      "tailwind.config.js",
+      'next.config.mjs',
+      'postcss.config.mjs',
+      'tailwind.config.js',
 
       // Generated files
-      "**/*.generated.*",
-      "public/_next/**",
+      '**/*.generated.*',
+      'public/_next/**',
 
       // Misc
-      ".DS_Store",
-      "*.log",
-      "coverage/**",
-      ".vercel/**"
+      '.DS_Store',
+      '*.log',
+      'coverage/**',
+      '.vercel/**'
     ]
   },
   {
-    files: ["**/*.{js,mjs,cjs,jsx}"],
+    files: ['**/*.{js,mjs,cjs,jsx}'],
     plugins: { react: pluginReact },
     languageOptions: {
       globals: {
@@ -64,12 +64,10 @@ export default defineConfig([
       // React specific rules
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      
+
       // General rules
       'quotes': ['error', 'single'],
       'semi': ['error', 'always'],
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'no-console': ['warn'],
       'no-var': ['error'],
       'prefer-const': ['error']
     }

@@ -25,7 +25,6 @@ export default function PDFChatPage() {
         const fileData = await fetchFile(fileId, user);
         setSelectedFile(fileData);
       } catch (err) {
-        console.error('Error fetching file:', err);
         router.push('/');
       } finally {
         setLoadingFile(false);

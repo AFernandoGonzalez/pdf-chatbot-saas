@@ -21,7 +21,6 @@ export async function syncUserWithBackend(firebaseUser) {
     const data = await res.json();
     return data;
   } catch (err) {
-    console.error('Error syncing user with backend:', err);
     return null;
   }
 }

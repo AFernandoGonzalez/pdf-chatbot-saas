@@ -34,7 +34,6 @@ export default function HomePage() {
 
       router.push(`/chat/${data.fileId}`);
     } catch (err) {
-      console.error('Upload error', err);
       alert('Upload failed — check console.');
     }
   }

@@ -105,7 +105,7 @@ export default function AuthModal({ onClose }) {
         </div>
 
         <p className="text-sm mt-4 text-center">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+          {isSignUp ? 'Already have an account?' : 'Don\'t have an account?'}{' '}
           <button
             className="text-blue-600 underline"
             onClick={() => setIsSignUp(!isSignUp)}
